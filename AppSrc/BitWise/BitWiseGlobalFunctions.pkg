@@ -1,0 +1,1102 @@
+﻿//-------------------------------------------------------------------------------------------
+//
+// BitWise global functions for DataFlex 
+//   provides NOT, NOR, XOR, NAND,  LeftShift and RightShift bitwise functionality 
+//   and few extra like addBit,  RemoveBit,  and IsFlagIn 
+//
+// Author : Samuel Pizarro
+// Release: v 1.0
+//   
+// Change History
+// Name            Date       Version   Description 
+// --------------- ---------- --------- ----------------------------------------------------
+// S. Pizarro      2022-04-21     v1.0  Created
+//   
+//-------------------------------------------------------------------------------------------
+
+Use GlobalFunctionsProcedures.pkg
+
+
+// BitWise Operations 
+// 
+//  | =========== | ================== | ======================================================= | ============================ |
+//  | Oparation   | Function           | Description                                             | Example                      | 
+//  | =========== | ================== | ======================================================= | ============================ |
+//  |    AND      | fBit_AND_*         | binary AND                                              |  00001100 =   12             |
+//  |             |                    | Result is 1 if corresponding bit of two operands is 1.  |  00011001 =   25             |
+//  |   C (&)     |                    |                                                         |  --------   ----             |
+//  |             |                    |                                                         |  00001000 =    8             |
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  |    OR       | fBit_OR_*          | binary OR.                                              |  00001100 =   12             |
+//  |             |                    |  result is 1 if at least one corresponding              |  00011001 =   25             |
+//  |   C (|)     |                    |  bit of two operanda is 1.                              |  --------   ----             |
+//  |             |                    |                                                         |  00011101 =   29             |
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  |    XOR      | fBit_XOR_*         | binary XOR (Exclusive OR)                               |  00001100 =   12             |
+//  |             |                    |   Result is 1 if the corresponding bit of two operants  |  00011001 =   25             |
+//  |   C (^)     |                    |   are opposite/different.                               |  --------   ----             |
+//  |             |                    |                                                         |  00010101 =   21             |
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  |    NOT      | fBit_NOT_*         | binary NOT (or complement) - Unary function             |  00100011 =   35             |
+//  |             |                    |   Changes bits: 1 to 0 and 0 to 1                       |  --------   ----             |
+//  |   C (~)     |                    |                                                         |  11011100 =  -36 if singed   |
+//  |             |                    |                                                         |          or  220 if unsigned |
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  |   NAND      | fBit_NAND_*        | binary NAND (NOT AND)                                   |  00001100 =   12             |
+//  |             |                    |   Result is 1 if the corresponding bit of two operants  |  00011001 =   25             |
+//  |   C (^)     |                    |   are 0. Equivalent to ~(a & b)                         |  --------   ----             |
+//  |             |                    |                                                         |  11101010 =  -22 if signed   |
+//  |             |                    |                                                         |          or  234 if unsigned |
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  | Right Shift | fBit_RightShiftA_* | Arithmetic Right Shift.                                 |  11010100 =  -44 (u212) by 2 |
+//  |             |                    | shifts all bits towards right by certain number of bits |  --------   ----             |
+//  | Arithmetic  |                    |   The left most bit (MSB) is preserved.                 |  11110101 =  -11 if singed   |
+//  |             |                    |   The right most bit (LSB) is discarted.                |          or  245 if unsigned | 
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  | Right Shift | fBit_RightShiftL_* | Logic Right Shift.                                      |  11010100 =  -44 (u212) by 2 |
+//  |   Logic     |                    | shifts all bits towards right by certain number of bits |  --------   ----             |
+//  |             |                    |   The left most bit (MSB) is not preserved, becomes 0.  |  00110101 =   53             |
+//  |   C (>>)    |                    |   The right most bit (LSB) is discarted.                |                              | 
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+//  | Left Shift  | fBit_LeftShift_*   | Left Shift.                                             |  11010101 =  -43 (u213) by 2 |
+//  |       c     |                    | shifts all bits towards left by certain number of bits  |  --------   ----             |
+//  |             |                    |   The left most bit (MSB) is discarted.                 |  01010100 =   84             |
+//  |   C (<<)    |                    |   The right most bit (LSB) becomes 0.                   |                              | 
+//  | ----------- | ------------------ | ------------------------------------------------------- | ---------------------------- |
+
+// DataFlex already provide us with iand and ior bitwise operators. 
+// but we will provide a function for then anyway..  just to be consistent. 
+
+
+
+Define Cbit_Char_Min     for (Convert('-128', Char))
+Define Cbit_Char_Max     for (Convert('127', Char))
+Define Cbit_uChar_Min    for (Convert('0', UChar))
+Define Cbit_uChar_Max    for (Convert('255', UChar))
+Define Cbit_Short_Min    for (Convert('-32768', Short))
+Define Cbit_Short_Max    for (Convert('32767', Short))
+Define Cbit_uShort_Min   for (Convert('0', UShort))
+Define Cbit_uShort_Max   for (Convert('65535', UShort))
+Define Cbit_Integer_Min  for (Convert('-2147483648 ', Integer))
+Define Cbit_Integer_Max  for (Convert('2147483647', Integer))
+Define Cbit_uInteger_Min for (Convert('0', UInteger))
+Define Cbit_uInteger_Max for (Convert('4294967295', UInteger))
+Define Cbit_BigInt_Min   for (Convert('-9223372036854775808', BigInt))
+Define Cbit_BigInt_Max   for (Convert('9223372036854775807', BigInt))
+Define Cbit_uBigInt_Min  for (Convert('0', UBigInt))
+Define Cbit_uBigInt_Max  for (Convert('18446744073709551615', UBigInt))  
+
+
+
+// Auxiliar bitwise functions 
+
+// IsFlagIn_*  
+//   Are the bits in Flag present  (on = 1) in Value ? 
+
+Function IsFlagIn_Char Global Char cFlag Char cValue Returns Boolean
+    Function_Return ((cValue iand cFlag) = cFlag)
+End_Function
+
+Function IsFlagIn_uChar Global UChar ucFlag UChar ucValue Returns Boolean
+    Function_Return ((ucValue iand ucFlag) = ucFlag)
+End_Function
+
+Function IsFlagIn_Short Global Short siFlag Short siValue Returns Boolean
+    Function_Return ((siValue iand siFlag) = siFlag)
+End_Function
+
+Function IsFlagIn_uShort Global UShort usFlag UShort usValue Returns Boolean
+    Function_Return ((usValue iand usFlag) = usFlag)
+End_Function
+
+Function IsFlagIn_Integer Global Integer iFlag Integer iValue Returns Boolean
+    Function_Return ((iValue iand iFlag) = iFlag)
+End_Function
+
+Function IsFlagIn_uInteger Global UInteger uiFlag Integer uiValue Returns Boolean
+    Function_Return ((uiValue iand uiFlag) = uiFlag)
+End_Function
+
+Function IsFlagIn_BigInt Global BigInt biFlag BigInt biValue Returns Boolean
+    Function_Return ((biValue iand biFlag) = biFlag)
+End_Function
+
+Function IsFlagIn_uBigInt Global UBigInt ubiFlag UBigInt ubiValue Returns Boolean 
+    Function_Return ((ubiValue iand ubiFlag) = ubiFlag)
+End_Function
+
+
+// SetFlagIn_* 
+//  Set bits in Flag to 'ON (1)' in Value 
+
+
+// 1 Byte (8 bits) signed 
+Function SetFlagIn_Char Global Char cFlag Char cValue Returns Char 
+    Function_Return (cFlag ior cValue)
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function SetFlagIn_uChar Global UChar ucFlag UChar ucValue Returns UChar 
+    Function_Return (ucFlag ior ucValue)
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function SetFlagIn_Short Global Short siFlag Short siValue Returns Short
+    Function_Return (siFlag ior siValue) 
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function SetFlagIn_uShort Global UShort usFlag UShort usValue Returns UShort
+    Function_Return (usFlag ior usValue) 
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function SetFlagIn_Integer Global Integer iFlag Integer iValue Returns Integer 
+    Function_Return (iFlag ior iValue) 
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function SetFlagIn_uInteger Global UInteger uiFlag UInteger uiValue Returns UInteger 
+    Function_Return (uiFlag ior uiValue) 
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function SetFlagIn_BigInt Global BigInt biFlag BigInt biValue Returns BigInt
+    Function_Return (biFlag ior biValue) 
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function SetFlagIn_uBigInt Global UBigInt ubiFlag UBigInt ubiValue Returns UBigInt
+    Function_Return (ubiFlag ior ubiValue) 
+End_Function
+
+
+// UnsetFlagIn_* 
+//  Un-Set bits in Flag to 'OFF (0)' in Value 
+
+
+// 1 Byte (8 bits) signed 
+Function UnSetFlagIn_Char Global Char cFlag Char cValue Returns Char 
+    If ((cValue iand cFlag) = cFlag) ;
+        Function_Return (cValue - cFlag)
+    Else ;
+        Function_Return cValue
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function UnSetFlagIn_uChar Global UChar ucFlag UChar ucValue Returns UChar 
+    If ((ucValue iand ucFlag) = ucFlag) ;
+        Function_Return (ucValue - ucFlag)
+    Else ;
+        Function_Return ucValue
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function UnSetFlagIn_Short Global Short siFlag Short siValue Returns Short
+    If ((siValue iand siFlag) = siFlag) ;
+        Function_Return (siValue - siFlag)
+    Else ;
+        Function_Return siValue
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function UnSetFlagIn_uShort Global UShort usFlag UShort usValue Returns UShort
+    If ((usValue iand usFlag) = usFlag) ;
+        Function_Return (usValue - usFlag)
+    Else ;
+        Function_Return usValue
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function UnSetFlagIn_Integer Global Integer iFlag Integer iValue Returns Integer 
+    If ((iValue iand iFlag) = iFlag) ;
+        Function_Return (iValue - iFlag)
+    Else ;
+        Function_Return iValue
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function UnSetFlagIn_uInteger Global UInteger uiFlag UInteger uiValue Returns UInteger 
+    If ((uiValue iand uiFlag) = uiFlag) ;
+        Function_Return (uiValue - uiFlag)
+    Else ;
+        Function_Return uiValue
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function UnSetFlagIn_BigInt Global BigInt biFlag BigInt biValue Returns BigInt
+    If ((biValue iand biFlag) = biFlag) ;
+        Function_Return (biValue - biFlag)
+    Else ;
+        Function_Return biValue
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function UnSetFlagIn_uBigInt Global UBigInt ubiFlag UBigInt ubiValue Returns UBigInt
+    If ((ubiValue iand ubiFlag) = ubiFlag) ;
+        Function_Return (ubiValue - ubiFlag)
+    Else ;
+        Function_Return ubiValue
+End_Function
+
+
+
+//  AND functions 
+
+// 1 Byte (8 bits) signed 
+Function fBit_AND_Char Global Char cVal1 Char cVal2 Returns Char 
+    Function_Return (cVal1 iand cVal2)
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_AND_uChar Global UChar ucVal1 UChar ucVal2 Returns UChar 
+    Function_Return (ucVal1 iand ucVal2)
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_AND_Short Global Short siVal1 Short siVal2 Returns Short
+    Function_Return (siVal1 iand siVal2) 
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_AND_uShort Global UShort usVal1 UShort usVal2 Returns UShort
+    Function_Return (usVal1 iand usVal2) 
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_AND_Integer Global Integer iVal1 Integer iVal2 Returns Integer 
+    Function_Return (iVal1 iand iVal2) 
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_AND_uInteger Global UInteger uiVal1 UInteger uiVal2 Returns UInteger 
+    Function_Return (uiVal1 iand uiVal2) 
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_AND_BigInt Global BigInt biVal1 BigInt biVal2 Returns BigInt
+    Function_Return (biVal1 iand biVal2) 
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_AND_uBigInt Global UBigInt ubiVal1 UBigInt ubiVal2 Returns UBigInt
+    Function_Return (ubiVal1 iand ubiVal2) 
+End_Function
+
+
+
+//  OR functions 
+
+// 1 Byte (8 bits) signed 
+Function fBit_OR_Char Global Char cVal1 Char cVal2 Returns Char 
+    Function_Return (cVal1 ior cVal2)
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_OR_uChar Global UChar ucVal1 UChar ucVal2 Returns UChar 
+    Function_Return (ucVal1 ior ucVal2)
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_OR_Short Global Short siVal1 Short siVal2 Returns Short
+    Function_Return (siVal1 ior siVal2) 
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_OR_uShort Global UShort usVal1 UShort usVal2 Returns UShort
+    Function_Return (usVal1 ior usVal2) 
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_OR_Integer Global Integer iVal1 Integer iVal2 Returns Integer 
+    Function_Return (iVal1 ior iVal2) 
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_OR_uInteger Global UInteger uiVal1 UInteger uiVal2 Returns UInteger 
+    Function_Return (uiVal1 ior uiVal2) 
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_OR_BigInt Global BigInt biVal1 BigInt biVal2 Returns BigInt
+    Function_Return (biVal1 ior biVal2) 
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_OR_uBigInt Global UBigInt ubiVal1 UBigInt ubiVal2 Returns UBigInt
+    Function_Return (ubiVal1 ior ubiVal2) 
+End_Function
+
+
+//  XOR functions 
+
+
+// 1 Byte (8 bits) signed 
+Function fBit_XOR_Char Global Char cVal1 Char cVal2 Returns Char 
+    Function_Return  (cVal1 + cVal2 - (2 * (cVal1 iand cVal2)))
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_XOR_uChar Global UChar ucVal1 UChar ucVal2 Returns UChar 
+    Function_Return (ucVal1 + ucVal2 - (2 * (ucVal1 iand ucVal2)))
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_XOR_Short Global Short siVal1 Short siVal2 Returns Short
+    Function_Return (siVal1 + siVal2 - (2 * (siVal1 iand siVal2)))
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_XOR_uShort Global UShort usVal1 UShort usVal2 Returns UShort
+    Function_Return (usVal1 + usVal2 - (2 * (usVal1 iand usVal2)))
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_XOR_Integer Global Integer iVal1 Integer iVal2 Returns Integer 
+    Function_Return (iVal1 + iVal2 - (2 * (iVal1 iand iVal2)))
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_XOR_uInteger Global UInteger uiVal1 UInteger uiVal2 Returns UInteger 
+    Function_Return (uiVal1 + uiVal2 - (2 * (uiVal1 iand uiVal2))) 
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_XOR_BigInt Global BigInt biVal1 BigInt biVal2 Returns BigInt
+    Function_Return (biVal1 + biVal2 - (2 * (biVal1 iand biVal2))) 
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_XOR_uBigInt Global UBigInt ubiVal1 UBigInt ubiVal2 Returns UBigInt
+    UBigInt ubiRet 
+    Integer i 
+    
+    // only performs the math , if values won't overflow.  Otherwise error is raised. 
+    If (( (Cbit_uBigInt_Max - ubiVal1) > ubiVal2) and ( (ubiVal1 iand ubiVal2) < (Cbit_uBigInt_Max/2)  ) ) Begin 
+        Move (ubiVal1 + ubiVal2 - (ubiVal1 iand ubiVal2) - (ubiVal1 iand ubiVal2) ) to ubiRet 
+        
+    End
+    Else Begin // perform an alternate loop approach to avoid overflow errors 
+       
+        For i from 0 to 63 
+            If ( (IsFlagIn_uBigInt(2^i, ubiVal1)) = (not(IsFlagIn_uBigInt(2^i, ubiVal2))) ) Move (SetFlagIn_uBigInt(2^i, ubiRet)) to ubiRet   
+        Loop 
+    End
+    
+    Function_Return ubiRet 
+End_Function
+
+
+
+//  NOT functions 
+
+// 1 Byte (8 bits) signed 
+Function fBit_NOT_Char Global Char cVal Returns Char 
+    Function_Return  ((-1 * cVal) - 1)
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_NOT_uChar Global UChar ucVal  Returns UChar 
+    Function_Return (Cbit_uChar_Max - ucVal) 
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_NOT_Short Global Short siVal Returns Short
+    Function_Return ((-1 * siVal) - 1)
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_NOT_uShort Global UShort usVal Returns UShort
+    Function_Return (Cbit_uShort_Max - usVal)
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_NOT_Integer Global Integer iVal Returns Integer 
+    Function_Return ((-1 * iVal) - 1)
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_NOT_uInteger Global UInteger uiVal Returns UInteger 
+    Function_Return (Cbit_uInteger_Max - uiVal)
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_NOT_BigInt Global BigInt biVal Returns BigInt
+    Function_Return ((-1 * biVal) - 1)
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_NOT_uBigInt Global UBigInt ubiVal Returns UBigInt
+    Function_Return (Cbit_uBigInt_Max - ubiVal )
+End_Function
+
+
+//  NAND functions 
+
+// 1 Byte (8 bits) signed 
+Function fBit_NAND_Char Global Char cVal1 Char cVal2 Returns Char 
+    Function_Return  (fBit_NOT_Char( cVal1 iand cVal2))
+End_Function
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_NAND_uChar Global UChar ucVal1 UChar ucVal2 Returns UChar 
+    Function_Return (fBit_NOT_uChar(ucVal1 iand ucVal2))
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_NAND_Short Global Short siVal1 Short siVal2 Returns Short
+    Function_Return (fBit_NOT_Short(siVal1 iand siVal2))
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_NAND_uShort Global UShort usVal1 UShort usVal2 Returns UShort
+    Function_Return (fBit_NOT_uShort(usVal1 iand usVal2))
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_NAND_Integer Global Integer iVal1 Integer iVal2 Returns Integer 
+    Function_Return (fBit_NOT_Integer(iVal1 iand iVal2))
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_NAND_uInteger Global UInteger uiVal1 UInteger uiVal2 Returns UInteger 
+    Function_Return (fBit_NOT_uInteger(uiVal1 iand uiVal2))
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_NAND_BigInt Global BigInt biVal1 BigInt biVal2 Returns BigInt
+    Function_Return (fBit_NOT_BigInt(biVal1 iand biVal2))
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_NAND_uBigInt Global UBigInt ubiVal1 UBigInt ubiVal2 Returns UBigInt
+    Function_Return (fBit_NOT_uBigInt(ubiVal1 iand ubiVal2))
+End_Function
+
+
+
+
+
+// BitWise Shift Operations  
+
+
+// fBit_LeftShift_* 
+
+//   Shift bits to left by n positions
+//     left-most bit is lost , right-most bit will receives an 0
+//
+//   Example left-shift by 1 
+//   
+//   | a | b | c | d | - original value 
+//   | b | c | d | X |  <- 0  , insert 0 at LSB (less significant bit) 
+// = | b | c | d | 0 |    
+
+
+// 1 Bytes (8 bits) signed 
+Function fBit_LeftShift_Char Global Char cVal Integer iShiftBy Returns Char 
+    Integer i 
+    Char    cRet 
+    
+    Move 0 to cRet 
+    If (iShiftBy < 1) Function_Return cVal 
+    If (iShiftBy > 7) Function_Return cRet 
+    
+    For i from 0 to (7 - iShiftBy)
+        If (IsFlagIn_Char(2^i, cVal)) Begin 
+            If (i = 7 - iShiftBy) Move (SetFlagIn_Char(Cbit_Char_Min    , cRet)) to cRet 
+            Else                  Move (SetFlagIn_Char( 2^(i + iShiftBy), cRet)) to cRet
+        End
+    Loop
+
+    Function_Return cRet
+End_Function
+
+// 1 Bytes (8 bits) unsigned 
+Function fBit_LeftShift_uChar Global UChar ucVal Integer iShiftBy Returns UChar 
+    Integer i 
+    UChar   ucRet 
+    
+    Move 0 to ucRet 
+    If (iShiftBy < 1) Function_Return ucVal 
+    If (iShiftBy > 7) Function_Return ucRet 
+    
+    For i from 0 to (7 - iShiftBy)
+        If (IsFlagIn_uChar(2^i, ucVal)) Begin 
+            Move (SetFlagIn_uChar( 2^(i + iShiftBy), ucRet)) to ucRet
+        End
+    Loop
+            
+    Function_Return ucRet
+End_Function
+
+
+// 2 Bytes (16 bits) signed 
+Function fBit_LeftShift_Short Global Short siVal Integer iShiftBy Returns Short 
+    Integer i 
+    Short   siRet 
+    
+    Move 0 to siRet 
+    If (iShiftBy < 1)  Function_Return siVal 
+    If (iShiftBy > 15) Function_Return siRet 
+    
+    For i from 0 to (15 - iShiftBy)
+        If (IsFlagIn_Short(2^i, siVal)) Begin 
+            If (i = 15 - iShiftBy) Move (SetFlagIn_Short(Cbit_Short_Min   , siRet)) to siRet 
+            Else                   Move (SetFlagIn_Short( 2^(i + iShiftBy), siRet)) to siRet
+        End
+    Loop
+            
+    Function_Return siRet
+End_Function
+
+// 2 Bytes (16 bits) unsigned 
+Function fBit_LeftShift_uShort Global UShort usVal Integer iShiftBy Returns UShort 
+    Integer i
+    UShort  usRet 
+    
+    Move 0 to usRet 
+    If (iShiftBy < 1)  Function_Return usVal 
+    If (iShiftBy > 15) Function_Return usRet 
+    
+    For i from 0 to (15 - iShiftBy)
+        If (IsFlagIn_uShort(2^i, usVal)) Begin 
+            Move (SetFlagIn_uShort( 2^(i + iShiftBy), usRet)) to usRet
+        End
+    Loop
+            
+    Function_Return usRet
+End_Function
+
+// 4 bytes (32 bits) signed
+Function fBit_LeftShift_Integer Global Integer iVal Integer iShiftBy Returns Integer 
+    Integer i 
+    Integer iRet 
+    
+    Move 0 to iRet 
+    If (iShiftBy < 1)  Function_Return iVal 
+    If (iShiftBy > 31) Function_Return iRet 
+    
+    For i from 0 to (31 - iShiftBy)
+        If (IsFlagIn_Integer(2^i, iVal)) Begin 
+            If (i = 31 - iShiftBy) Move (SetFlagIn_Integer(Cbit_Integer_Min , iRet)) to iRet 
+            Else                   Move (SetFlagIn_Integer( 2^(i + iShiftBy), iRet)) to iRet
+        End
+    Loop
+            
+    Function_Return iRet
+End_Function
+
+// 4 bytes (32 bits) un-signed
+Function fBit_LeftShift_uInteger Global UInteger uiVal Integer iShiftBy Returns UInteger 
+    Integer i 
+    UInteger uiRet 
+    
+    Move 0 to uiRet 
+    If (iShiftBy < 1)  Function_Return uiVal 
+    If (iShiftBy > 31) Function_Return uiRet 
+    
+    For i from 0 to (31 - iShiftBy)
+        If (IsFlagIn_uInteger(2^i, uiVal)) Begin 
+            Move (SetFlagIn_uInteger( 2^(i + iShiftBy), uiRet)) to uiRet
+        End
+    Loop
+            
+    Function_Return uiRet
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_LeftShift_BigInt Global BigInt biVal Integer iShiftBy Returns BigInt 
+    Integer i 
+    BigInt  biRet 
+    
+    Move 0 to biRet 
+    If (iShiftBy < 1)  Function_Return biVal 
+    If (iShiftBy > 63) Function_Return biRet 
+    
+    For i from 0 to (63 - iShiftBy)
+        If (IsFlagIn_BigInt(2^i, biVal)) Begin 
+            If (i = 63 - iShiftBy) Move (SetFlagIn_BigInt(Cbit_BigInt_Min  , biRet)) to biRet 
+            Else                   Move (SetFlagIn_BigInt( 2^(i + iShiftBy), biRet)) to biRet
+        End
+    Loop
+            
+    Function_Return biRet
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_LeftShift_uBigInt Global UBigInt ubiVal Integer iShiftBy Returns UBigInt 
+    Integer i 
+    UBigInt ubiRet 
+    
+    Move 0 to ubiRet 
+    If (iShiftBy < 1)  Function_Return ubiVal 
+    If (iShiftBy > 63) Function_Return ubiRet 
+
+    For i from 0 to (63 - iShiftBy)
+        If (IsFlagIn_uBigInt(2^i, ubiVal)) Begin 
+            Move (SetFlagIn_uBigInt( 2^(i + iShiftBy), ubiRet)) to ubiRet
+        End
+    Loop
+            
+    Function_Return ubiRet
+End_Function
+
+
+
+// fBit_Right-ShiftA_*
+
+//   Arithmetical Right-Shift (sign is preserved) 
+//   Example:
+//    | a | b | c | d |   >> by 2 
+// =  | a | a | a | b |   c and d get discarted 
+//
+//   1 0 1 1 0 0 1 1  = -77  >> by 2  
+//   - - - - - - - -       
+//   1 1 1 0 1 1 0 0  = -20
+    
+// 1 Byte (8 bits) signed
+Function fBit_RightShiftA_Char Global Char cVal Integer iShiftBy Returns Char 
+    Integer i 
+    Char cRet 
+
+    Move 0 to cRet     
+    If ((cVal = -1) or (iShiftBy < 1)) ;  // >> -1 is always -1 
+        Function_Return cVal 
+    If (iShiftBy > 7) Move 7 to iShiftBy // no sense to shift further     
+        
+    For i from iShiftBy to 6
+        If (IsFlagIn_Char(2^i, cVal)) ;
+            Move (SetFlagIn_Char( 2^(i - iShiftBy), cRet)) to cRet
+    Loop
+    
+    // Copy the left-most bit (signal bit) 
+    If (IsFlagIn_Char(Cbit_Char_Min, cVal)) Begin  // has to be -128,   2^7 gives error 4382 
+        For i from (7 - iShiftBy) to 6 
+            Move (SetFlagIn_Char(2^i, cRet)) to cRet 
+        Loop
+        // last bit 
+        Move (SetFlagIn_Char(Cbit_Char_Min, cRet)) to cRet 
+    End
+        
+    Function_Return cRet
+End_Function
+
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_RightShiftA_uChar Global UChar ucVal Integer iShiftBy Returns UChar 
+    Integer i 
+    UChar ucRet 
+    
+    Move 0 to ucRet
+    If ((ucVal = Cbit_uChar_Max) or (iShiftBy < 1)) ;  //  255 >>n, is always 255 (2^8 -1) 
+        Function_Return ucVal 
+    If (iShiftBy > 7) Move 7 to iShiftBy // no sense to shift further     
+        
+    For i from iShiftBy to 6
+        If (IsFlagIn_uChar(2^i, ucVal)) ;
+            Move (SetFlagIn_uChar( 2^(i - iShiftBy), ucRet)) to ucRet
+    Loop
+    
+    // Copy the left-most bit 
+    If (IsFlagIn_uChar(2^7, ucVal)) Begin 
+        For i from (7 - iShiftBy) to 7 
+            Move (SetFlagIn_uChar(2^i, ucRet)) to ucRet 
+        Loop
+    End
+        
+    Function_Return ucRet
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_RightShiftA_Short Global Short siVal Integer iShiftBy Returns Short
+    Integer i 
+    Short siRet 
+
+    Move 0 to siRet 
+    If ((siVal = -1) or (iShiftBy < 1)) ;  // -1 >> n, is always -1 
+        Function_Return siVal 
+    If (iShiftBy > 15) Move 15 to iShiftBy // no sense to shift further             
+    
+    For i from iShiftBy to 14
+        If (IsFlagIn_Short(2^i, siVal)) ;
+            Move (SetFlagIn_Short( 2^(i - iShiftBy), siRet)) to siRet
+    Loop
+    
+    // Copy the left-most bit (signal bit) 
+    If (IsFlagIn_Short(Cbit_Short_Min, siVal)) Begin  // has to be -32768,   2^15 gives error 4382 
+        For i from (15 - iShiftBy) to 14 
+            Move (SetFlagIn_Short(2^i, siRet)) to siRet 
+        Loop
+        // last bit 
+        Move (SetFlagIn_Short(Cbit_Short_Min, siRet)) to siRet 
+    End
+        
+    Function_Return siRet
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_RightShiftA_uShort Global UShort usVal Integer iShiftBy Returns UShort  
+    Integer i 
+    UShort usRet 
+    
+    Move 0 to usRet 
+    If ((usVal = Cbit_uShort_Max) or (iShiftBy < 1)) ;  //  65.535 >> n,  is always 65.535 (2^16 -1)
+        Function_Return usVal 
+    If (iShiftBy > 15) Move 15 to iShiftBy // no sense to shift further             
+        
+    For i from iShiftBy to 14
+        If (IsFlagIn_uShort(2^i, usVal)) ; 
+            Move (SetFlagIn_uShort( 2^(i - iShiftBy), usRet)) to usRet
+    Loop
+    
+    // Copy the left-most bit 
+    If (IsFlagIn_uShort(2^15, usVal)) Begin 
+        For i from (15 - iShiftBy) to 15 
+            Move (SetFlagIn_uShort(2^i, usRet)) to usRet 
+        Loop
+    End
+        
+    Function_Return usRet
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_RightShiftA_Integer Global Integer iVal Integer iShiftBy Returns Integer 
+    Integer i 
+    Integer iRet 
+    
+    Move 0 to iRet 
+    If ((iVal = -1) or (iShiftBy < 1)) ;  // -1 >> n, is always -1 
+        Function_Return iVal 
+    If (iShiftBy > 31) Move 31 to iShiftBy // no sense to shift further             
+        
+    For i from iShiftBy to 30
+        If (IsFlagIn_Integer(2^i, iVal)) ; 
+            Move (SetFlagIn_Integer( 2^(i - iShiftBy), iRet)) to iRet
+    Loop
+    
+    // Copy the left-most bit (signal bit) 
+    If (IsFlagIn_Integer( Cbit_Integer_Min , iVal)) Begin  //  -( 2^31 )  = -2.147.483.648
+        For i from (31 - iShiftBy) to 30 
+            Move (SetFlagIn_Integer(2^i, iRet)) to iRet 
+        Loop
+        // last bit 
+        Move (SetFlagIn_Integer(Cbit_Integer_Min, iRet)) to iRet 
+        
+    End
+        
+    Function_Return iRet
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_RightShiftA_uInteger Global UInteger uiVal Integer iShiftBy Returns UInteger 
+    Integer i 
+    UInteger uiRet 
+
+    Move 0 to uiRet 
+    If ((uiVal = Cbit_uInteger_Max) or (iShiftBy < 1)) ;  //  4.294.967.295 >> n,  is always 4.294.967.295 (2^32 -1) 
+        Function_Return uiVal 
+    If (iShiftBy > 31) Move 31 to iShiftBy // no sense to shift further             
+        
+    For i from iShiftBy to 30
+        If (IsFlagIn_uInteger(2^i, uiVal)) ; 
+            Move (SetFlagIn_uInteger( 2^(i - iShiftBy), uiRet)) to uiRet
+    Loop
+    
+    // Copy the left-most bit 
+    If (IsFlagIn_uInteger(2^31, uiVal)) Begin 
+        For i from (31 - iShiftBy) to 31 
+            Move (SetFlagIn_uInteger(2^i, uiRet)) to uiRet 
+        Loop
+    End
+        
+    Function_Return uiRet
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_RightShiftA_BigInt Global BigInt biVal Integer iShiftBy Returns BigInt 
+    Integer i 
+    BigInt biRet 
+    
+    Move 0 to biRet 
+    If ((biVal = -1) or (iShiftBy < 1)) ;  // -1 >> n, is always -1 
+        Function_Return biVal 
+    If (iShiftBy > 63) Move 63 to iShiftBy // no sense to shift further                 
+        
+    For i from iShiftBy to 62
+        If (IsFlagIn_BigInt(2^i, biVal)) Begin 
+             
+            Move (SetFlagIn_BigInt( 2^(i - iShiftBy), biRet)) to biRet
+        End
+    Loop
+    
+    // Copy the left-most bit (signal bit) 
+    If (IsFlagIn_BigInt( Cbit_BigInt_Min , biVal)) Begin  //  -( 2^63 )  =  -9.223.372.036.854.775.808
+        For i from (63 - iShiftBy) to 62 
+            Move (SetFlagIn_BigInt(2^i, biRet)) to biRet 
+        Loop
+        // last bit 
+        Move (SetFlagIn_BigInt( Cbit_BigInt_Min , biRet)) to biRet 
+        
+    End
+        
+    Function_Return biRet
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_RightShiftA_uBigInt Global UBigInt ubiVal Integer iShiftBy Returns UBigInt 
+    Integer i 
+    UBigInt ubiRet 
+    
+    Move 0 to ubiRet 
+    If ((ubiVal = Cbit_uBigInt_Max) or (iShiftBy < 1)) ;  //  18,446,744,073,709,551,615 >> n,  is always 18,446,744,073,709,551,615 (2^64 -1) 
+        Function_Return ubiVal 
+    If (iShiftBy > 63) Move 63 to iShiftBy // no sense to shift further                 
+        
+    For i from iShiftBy to 63
+        If (IsFlagIn_uBigInt(2^i, ubiVal)) ; 
+            Move (SetFlagIn_uBigInt( 2^(i - iShiftBy), ubiRet)) to ubiRet
+    Loop
+    
+    // Copy the left-most bit 
+    If (IsFlagIn_uBigInt(2^63, ubiVal)) Begin 
+        For i from (63 -  iShiftBy) to 63   
+            Move (SetFlagIn_uBigInt(2^i, ubiRet)) to ubiRet 
+        Loop
+    End
+        
+    Function_Return ubiRet
+End_Function
+
+
+
+// fBit_Right-ShiftL_*
+
+//   Logical Right-Shift (sign is NOT preserved) 
+//   Example:
+//    | a | b | c | d |   >> by 2 
+// =  | 0 | 0 | a | b |   c and d get discarted 
+
+// 1 0 1 1 0 0 1 1  = -77  >> by 2  
+// - - - - - - - -       
+// 0 0 1 0 1 1 0 0  = +44
+
+// 1 Byte (8 bits) signed
+Function fBit_RightShiftL_Char Global Char cVal Integer iShiftBy Returns Char 
+    Integer i 
+    Char cRet 
+
+    Move 0 to cRet 
+    If (iShiftBy < 1) Function_Return cVal  // nothing to shift
+    If (iShiftBy > 7) Function_Return 0     // no sense to shift further     
+    
+    // special handling for signal-bit     
+    If (IsFlagIn_Char(Cbit_Char_Min, cVal)) ; 
+        Move (SetFlagIn_Char( 2^(7 - iShiftBy), cRet)) to cRet 
+        
+    For i from iShiftBy to 6
+        If (IsFlagIn_Char(2^i, cVal)) ;
+            Move (SetFlagIn_Char( 2^(i - iShiftBy), cRet)) to cRet
+    Loop
+    
+    Function_Return cRet
+End_Function
+
+
+// 1 Byte (8 bits) un-signed 
+Function fBit_RightShiftL_uChar Global UChar ucVal Integer iShiftBy Returns UChar 
+    Integer i 
+    UChar ucRet 
+    
+    Move 0 to ucRet
+    If (iShiftBy < 1) Function_Return ucVal  // nothing to shift
+    If (iShiftBy > 7) Function_Return 0      // no sense to shift further     
+        
+    For i from iShiftBy to 7
+        If (IsFlagIn_uChar(2^i, ucVal)) ;
+            Move (SetFlagIn_uChar( 2^(i - iShiftBy), ucRet)) to ucRet
+    Loop
+    
+    Function_Return ucRet
+End_Function
+
+// 2 Bytes (16 bits) signed 
+Function fBit_RightShiftL_Short Global Short siVal Integer iShiftBy Returns Short
+    Integer i 
+    Short siRet 
+    
+    Move 0 to siRet
+    If (iShiftBy < 1)  Function_Return siVal  // nothing to shift 
+    If (iShiftBy > 15) Function_Return 0      // no sense to shift further             
+    
+    // special handling for signal-bit 
+    If (IsFlagIn_Short(Cbit_Short_Min, siVal)) ; 
+        Move (SetFlagIn_Short(2 ^(15 - iShiftBy), siRet)) to siRet 
+        
+    For i from iShiftBy to 14
+        If (IsFlagIn_Short(2^i, siVal)) ;
+            Move (SetFlagIn_Short( 2^(i - iShiftBy), siRet)) to siRet
+    Loop
+    
+    Function_Return siRet
+End_Function
+
+// 2 Bytes (16 bits) un-signed 
+Function fBit_RightShiftL_uShort Global UShort usVal Integer iShiftBy Returns UShort  
+    Integer i 
+    UShort usRet 
+    
+    Move 0 to usRet 
+    If (iShiftBy < 1)  Function_Return usVal  // nothing to shift 
+    If (iShiftBy > 15) Function_Return 0      // no sense to shift further             
+    
+    For i from iShiftBy to 15
+        If (IsFlagIn_uShort(2^i, usVal)) ; 
+            Move (SetFlagIn_uShort( 2^(i - iShiftBy), usRet)) to usRet
+    Loop
+    
+    Function_Return usRet
+End_Function
+
+// 4 Bytes (32 bits) signed 
+Function fBit_RightShiftL_Integer Global Integer iVal Integer iShiftBy Returns Integer 
+    Integer i 
+    Integer iRet 
+    
+    Move 0 to iRet 
+    If (iShiftBy < 1)  Function_Return iVal   // nothing to shift 
+    If (iShiftBy > 31) Function_Return 0      // no sense to shift further             
+
+    // special handling for signal-bit 
+    If (IsFlagIn_Integer(Cbit_Integer_Min, iVal)) ; 
+        Move (SetFlagIn_Integer(2 ^(31 - iShiftBy), iRet)) to iRet 
+        
+    For i from iShiftBy to 30
+        If (IsFlagIn_Integer(2^i, iVal)) ; 
+            Move (SetFlagIn_Integer( 2^(i - iShiftBy), iRet)) to iRet
+    Loop
+    
+    Function_Return iRet
+End_Function
+
+// 4 Bytes (32 bits) un-signed 
+Function fBit_RightShiftL_uInteger Global UInteger uiVal Integer iShiftBy Returns UInteger 
+    Integer i 
+    UInteger uiRet 
+
+    Move 0 to uiRet 
+    If (iShiftBy < 1)  Function_Return uiVal  // nothing to shift 
+    If (iShiftBy > 31) Function_Return 0      // no sense to shift further             
+        
+    For i from iShiftBy to 31
+        If (IsFlagIn_uInteger(2^i, uiVal)) ; 
+            Move (SetFlagIn_uInteger( 2^(i - iShiftBy), uiRet)) to uiRet
+    Loop
+    
+    Function_Return uiRet
+End_Function
+
+// 8 Bytes (64 bits) signed 
+Function fBit_RightShiftL_BigInt Global BigInt biVal Integer iShiftBy Returns BigInt 
+    Integer i 
+    BigInt biRet 
+    
+    Move 0 to biRet 
+    If (iShiftBy < 1)  Function_Return biVal  // nothing to shift 
+    If (iShiftBy > 63) Function_Return 0      // no sense to shift further             
+
+    // special handling for signal-bit 
+    If (IsFlagIn_BigInt(Cbit_BigInt_Min, biVal)) ; 
+        Move (SetFlagIn_BigInt(2 ^(63 - iShiftBy), biRet)) to biRet 
+        
+    For i from iShiftBy to 62
+        If (IsFlagIn_BigInt(2^i, biVal)) Begin 
+             
+            Move (SetFlagIn_BigInt( 2^(i - iShiftBy), biRet)) to biRet
+        End
+    Loop
+    
+    Function_Return biRet
+End_Function
+
+// 8 Bytes (64 bits) un-signed 
+Function fBit_RightShiftL_uBigInt Global UBigInt ubiVal Integer iShiftBy Returns UBigInt 
+    Integer i 
+    UBigInt ubiRet 
+    
+    Move 0 to ubiRet 
+    If (iShiftBy < 1)  Function_Return ubiVal  // nothing to shift 
+    If (iShiftBy > 63) Function_Return 0       // no sense to shift further             
+        
+    For i from iShiftBy to 63
+        If (IsFlagIn_uBigInt(2^i, ubiVal)) ; 
+            Move (SetFlagIn_uBigInt( 2^(i - iShiftBy), ubiRet)) to ubiRet
+    Loop
+    
+    Function_Return ubiRet
+End_Function
+
+
+
+// fBitRepresentation_* 
+//  given a decimal number, returns a string array represeing it's binary format. 
+//   The elements in array represents their expoential index on 2^i operation.  
+//   in other words,  index 0 represents the LSB (less signivicant bit) , 
+//   While the last Item in array is the MSB (most significant bit) 
+
+//  No need to have a singed variant function here..   when working with signed integers,  
+//  Use the equivalent un-signed function. 
+//   char -> uChar |  short -> uShort  | integer -> uInteger |  bigint -> uBigInt 
+
+Function fBitRepresentation_8bits Global  UChar ucVal Returns String[]
+    Integer i 
+    String[] sRet 
+    
+    For i from 0 to 7 
+        If (IsFlagIn_uChar(2^i, ucVal)) ; 
+            Move "1" to sRet[i]
+        Else ;
+            Move "0" to sRet[i]
+    Loop
+    Function_Return sRet 
+End_Function
+
+Function fBitRepresentation_16bits Global  UShort usVal Returns String[] 
+    Integer i 
+    String[] sRet 
+    
+    For i from 0 to 15 
+        If (IsFlagIn_uShort(2^i, usVal)) ; 
+            Move "1" to sRet[i]
+        Else ;
+            Move "0" to sRet[i]
+    Loop
+    Function_Return sRet 
+End_Function
+
+Function fBitRepresentation_32bits Global  UInteger uiVal Returns String[] 
+    Integer i 
+    String[] sRet 
+    
+    For i from 0 to 31 
+        If (IsFlagIn_uInteger(2^i, uiVal)) ; 
+            Move "1" to sRet[i]
+        Else ;
+            Move "0" to sRet[i]
+    Loop
+    Function_Return sRet 
+    
+    
+End_Function
+
+Function fBitRepresentation_64bits Global  UBigInt ubiVal Returns String[] 
+    Integer i 
+    String[] sRet 
+    
+    For i from 0 to 63 
+        If (IsFlagIn_uBigInt(2^i, ubiVal)) ; 
+            Move "1" to sRet[i]
+        Else ;
+            Move "0" to sRet[i]
+    Loop
+    Function_Return sRet 
+End_Function
